@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title id="page_title"> 14848 Search Engine</title>
+    <style>
+        .button-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .button-container button {
+            margin: 5px;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div style="position: absolute; top: 10px; left: 10px;">
+        <h2>14848 Search Engine</h2>
+    </div>
+    <div id="goback-div" style="position: absolute; top: 10px; right: 10px; margin: 0; display: none;">
+        <p><a href="#" onclick="goBack()">Go Back</a></p>
+    </div>
+    
+    
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+        <h1 id="load_engine_header">Load My Engine</h1>
+        <h1 id="result_header"></h1>
+        <div class="button-container">
+            <input type="file" id="file_input" multiple style="display: none;">
+            <button id="select_files_button" onclick="selectFiles()">Choose Files</button>
+            <div id="selected_files"></div>
+            <br>
+            <button id="construct_indices_button" onclick="constructIndices()">Construct Inverted Indices</button>
+            <button id="load_engine_button" style="display: none;" onclick="loadEngine()">Load Engine</button>
+            <br>
+            <button id="search_term_button" style="display: none;" onclick="searchTerm()">Search for Term</button>
+            <br>
+            <button id="top_n_button" style="display: none;" onclick="topN()">Top-N</button>
+
+            <div id="search_term_input" style="display: none;">
+                <input type="text" id="search_term" placeholder="Type Your Search Here ...">
+                <br>
+                <button id="search_button" onclick="searchTermInput()">Search</button>
+            </div>
+
+            <div id="top_n_input" style="display: none;">
+                <input type="number" id="top_n" placeholder="Type Your N Here ...">
+                <br>
+                <button id="top_n_input_button" onclick="topNInput()">Search</button>
+            </div>
+
+        </div>
+    </div>
+    <script>
+        function selectFiles() {
+            $("#file_input").click();
+        }
+
+        $("#file_input").change(function () {
+            var formData = new FormData();
+            for (var i = 0; i < this.files.length; i++) {
+                formData.append("files[]", this.files[i]);
+            }
+          
+            $.ajax({
+                url: '/send_files',
+                type: 'POST',
+                data: formData,
+                contentType: false, 
+                processData: false,
+                success: function (response) {
+                    var selectedFileNames = [];
+                    for (var i = 0; i < response.filenames.length; i++) {
+                        selectedFileNames.push(response.filenames[i]);
+                    }
+                    $("#selected_files").html("<p></p><ul><li>" + selectedFileNames.join("</li><li>") + "</li></ul>");
+                    $("#load_engine_button").show();
+                    $("#construct_indices_button").hide();
+                },
+                error: function (error) {
+                    console.error(error);
+                    alert('Error sending files');
+                }
+            });
+        });
+
+        function constructIndices() {
+            $.ajax({
+                url: '/construct_indices',
+                type: 'POST',
+                success: function(response) {
+                    alert(response.message);
+                },
+                error: function(error) {
+                    console.error(error);
+                    alert('Error constructing indices');
+                }
+            });
+        }
+
+        function loadEngine() {
+            $.ajax({
+                url: '/load_engine',
+                type: 'POST',
+                success: function(response) {
+                    $("#select_files_button").hide();
+                    $("#selected_files").hide();
+                    
+                    $("#search_term_button").show();
+                    $("#top_n_button").show();
+                    $("#load_engine_button").hide();
+                    
+                    $("#load_engine_header").html("Engine was loaded<br>&<br>Inverted Indices were constructed successfully!<br><br> Please Select Action");
+
+                },
+                error: function(error) {
+                    console.error(error);
+                    alert('Error loading engine');
+                }
+            });
+        }
+
+        function searchTerm() {
+            $("#load_engine_header").html("Enter your Search Term");
+            
+            $("#select_files_button").hide();
+            $("#selected_files").hide();
+            
+            $("#search_term_input").show();
+            
+            $("#search_term_button").hide();
+            
+            $("#top_n_button").hide();
+            
+            $("#load_engine_button").hide();
+        }
+
+        function topN() {
+            $("#load_engine_header").html("Enter your N Value");
+            
+            $("#select_files_button").hide();
+            $("#selected_files").hide();
+            
+            $("#top_n_input").show();
+            
+            $("#search_term_button").hide();
+            
+            $("#top_n_button").hide();
+            
+            $("#load_engine_button").hide();
+        }
+
+        function searchTermInput() {
+            $("#load_engine_header").hide();
+            var searchTerm = $("#search_term").val();
+            
+            $.ajax({
+                url: '/search_term_input', 
+                type: 'POST',
+                data: { search_term: searchTerm }, 
+                success: function(response) {
+                    $("#search_term_input").hide();
+
+                    var resultsHtml = '';
+                    resultsHtml += '<p>You searched for the term: ' + searchTerm + '</p>';
+                    resultsHtml += '<p>Your search was executed in ' + response.execution_time + ' ms</p>';
+                    
+                    // // Display the search results in a table
+                    // resultsHtml += '<table>';
+                    // resultsHtml += '<tr><th>Doc Id</th><th>Doc Folder</th><th>Doc Name</th><th>Frequencies</th></tr>';
+                    // for (var i = 0; i < response.results.length; i++) {
+                    //     var result = response.results[i];
+                    //     resultsHtml += '<tr><td>' + result.doc_id + '</td><td>' + result.doc_folder + '</td><td>' + result.doc_name + '</td><td>' + result.frequencies + '</td></tr>';
+                    // }
+                    // resultsHtml += '</table>';
+                    
+                    $("#goback-div").show();
+                    $("#result_header").html(resultsHtml);
+                    $("#result_header").css("text-align", "left");
+                },
+                error: function(error) {
+                    console.error(error);
+                    alert('Error searching for term');
+                }
+            });   
+        }
+
+        function goBack() {
+            $("#goback-div").hide();
+            $("#load_engine_header").show();
+            $("#result_header").html('');
+            $("#load_engine_header").html("Engine was loaded<br>&<br>Inverted Indices were constructed successfully! <br><br> Please Select Action");
+            $("#search_term_input").hide();
+            $("#search_term_button").show();
+            $("#top_n_button").show();
+        }
+
+
+        function topNInput() {
+            $("#load_engine_header").hide();
+            var n = $("#top_n").val();
+            
+            $.ajax({
+                url: '/top_n_input', 
+                type: 'POST',
+                data: { n: n }, 
+                success: function(response) {
+                    $("#top_n_input").hide();
+                    var resultsHtml = '<p>Top-N Frequent Terms: </p>';
+                 
+                    // // Display the search results in a table
+                    // resultsHtml += '<table>';
+                    // resultsHtml += '<tr><th>Doc Id</th><th>Doc Folder</th><th>Doc Name</th><th>Frequencies</th></tr>';
+                    // for (var i = 0; i < response.results.length; i++) {
+                    //     var result = response.results[i];
+                    //     resultsHtml += '<tr><td>' + result.doc_id + '</td><td>' + result.doc_folder + '</td><td>' + result.doc_name + '</td><td>' + result.frequencies + '</td></tr>';
+                    // }
+                    // resultsHtml += '</table>';
+                    
+                    $("#goback-div").show();
+
+                    $("#result_header").html(resultsHtml);
+                    $("#result_header").css("text-align", "left");
+                },
+                error: function(error) {
+                    console.error(error);
+                    alert('Error searching for term');
+                }
+            });   
+        }
+    </script>
+</body>
+</html>
